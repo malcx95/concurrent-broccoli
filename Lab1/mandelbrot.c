@@ -289,9 +289,6 @@ init_ppm(struct mandelbrot_param* param)
 void
 update_colors(struct mandelbrot_param* param)
 {
-	// Gradient color
-	color_t start, stop;
-	// Other control variables
 	int i;
 
 	if(color != NULL)
@@ -300,26 +297,12 @@ update_colors(struct mandelbrot_param* param)
 	}
 	color = malloc(sizeof(color_t) * num_colors(param));
 
-	// Start color
-	start.red = 255;
-	start.green = 0;
-	start.blue = 0;
-
-	// Stop color
-	stop.red = 0;
-	stop.green = 0;
-	stop.blue = 0;
-
 	// Initialize the color vector
 	for (i = 0; i < num_colors(param); i++)
 	{
 		color[i].red = cos((M_PI/2)*i/num_colors(param))*255;
 		color[i].green = sin(M_PI*i/num_colors(param))*255;
-		color[i].blue = (stop.blue - start.blue) * ((double) i / num_colors(param)) + start.blue;
-
-		// color[i].green = (stop.green - start.green) * ((double) i / num_colors(param)) + start.green;
-		// color[i].red = (stop.red - start.red) * ((double) i / num_colors(param)) + start.red;
-		// color[i].blue = (stop.blue - start.blue) * ((double) i / num_colors(param)) + start.blue;
+		color[i].blue = sin(M_PI*2*i/num_colors(param))*255;
 	}
 }
 

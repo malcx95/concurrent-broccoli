@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <malloc.h>
+#include <math.h>
 
 #include "mandelbrot.h"
 #include "ppm.h"
@@ -300,8 +301,8 @@ update_colors(struct mandelbrot_param* param)
 	color = malloc(sizeof(color_t) * num_colors(param));
 
 	// Start color
-	start.red = 219;
-	start.green = 57;
+	start.red = 255;
+	start.green = 0;
 	start.blue = 0;
 
 	// Stop color
@@ -312,9 +313,13 @@ update_colors(struct mandelbrot_param* param)
 	// Initialize the color vector
 	for (i = 0; i < num_colors(param); i++)
 	{
-		color[i].green = (stop.green - start.green) * ((double) i / num_colors(param)) + start.green;
-		color[i].red = (stop.red - start.red) * ((double) i / num_colors(param)) + start.red;
+		color[i].red = cos((M_PI/2)*i/num_colors(param))*255;
+		color[i].green = sin(M_PI*i/num_colors(param))*255;
 		color[i].blue = (stop.blue - start.blue) * ((double) i / num_colors(param)) + start.blue;
+
+		// color[i].green = (stop.green - start.green) * ((double) i / num_colors(param)) + start.green;
+		// color[i].red = (stop.red - start.red) * ((double) i / num_colors(param)) + start.red;
+		// color[i].blue = (stop.blue - start.blue) * ((double) i / num_colors(param)) + start.blue;
 	}
 }
 

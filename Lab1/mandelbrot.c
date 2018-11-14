@@ -121,11 +121,19 @@ compute_chunk(struct mandelbrot_param *args)
 
 /***** You may modify this portion *****/
 #if NB_THREADS > 0
+
+static pthread_mutex_t lock;
+static int curr_pos;
+
 void
 init_round(struct mandelbrot_thread *args)
 {
 	// Initialize or reinitialize here variables before any thread starts or restarts computation
 	// Every thread run this function; feel free to allow only one of them to do anything
+    if (args->id == 0) {
+        pthread_mutex_init(&lock, NULL);
+        curr_pos = 0;
+    }
 }
 
 /*
@@ -136,39 +144,42 @@ parallel_mandelbrot(struct mandelbrot_thread *args, struct mandelbrot_param *par
 {
 // Compiled only if LOADBALANCE = 0
 #if LOADBALANCE == 0
-	// Replace this code with a naive *parallel* implementation.
-	// Only thread of ID 0 compute the whole picture
-	if(args->id == 0)
-	{
-		// Define the region compute_chunk() has to compute
-		// Entire height: from 0 to picture's height
-		parameters->begin_h = 0;
-		parameters->end_h = parameters->height;
-		// Entire width: from 0 to picture's width
-		parameters->begin_w = 0;
-		parameters->end_w = parameters->width;
+    int chunk_height = (parameters->height + 1) / NB_THREADS;
 
-		// Go
-		compute_chunk(parameters);
-	}
+    parameters->begin_h = args->id*chunk_height;
+    parameters->end_h = (args->id + 1)*chunk_height;
+
+    // Entire width: from 0 to picture's width
+    parameters->begin_w = 0;
+    parameters->end_w = parameters->width;
+
+    // Go
+    compute_chunk(parameters);
+
 #endif
 // Compiled only if LOADBALANCE = 1
 #if LOADBALANCE == 1
-	// Replace this code with your load-balanced smarter solution.
-	// Only thread of ID 0 compute the whole picture
-	if(args->id == 0)
-	{
-		// Define the region compute_chunk() has to compute
-		// Entire height: from 0 to picture's height
-		parameters->begin_h = 0;
-		parameters->end_h = parameters->height;
-		// Entire width: from 0 to picture's width
-		parameters->begin_w = 0;
-		parameters->end_w = parameters->width;
+    
+    while (1) {
+        pthread_mutex_lock(&lock);
+        int position = curr_pos++;
+        pthread_mutex_unlock(&lock);
 
-		// Go
-		compute_chunk(parameters);
-	}
+        if (position >= parameters->height) {
+            break;
+        }
+
+        parameters->begin_h = position;
+        parameters->end_h = position + 1;
+
+        // Entire width: from 0 to picture's width
+        parameters->begin_w = 0;
+        parameters->end_w = parameters->width;
+
+        // Go
+        compute_chunk(parameters);
+    }
+
 #endif
 // Compiled only if LOADBALANCE = 2
 #if LOADBALANCE == 2

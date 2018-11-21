@@ -8,7 +8,7 @@ def main():
             "NB_THREADS={}".format(num_threads)], stdout=subprocess.PIPE)
         p.wait()
         out = subprocess.check_output(
-            "./mandelbrot-256-500-375--2-0.6--1-1-{}-1".format(num_threads)
+            "./mandelbrot-256-500-375--2-0.6--1-1-{}-0".format(num_threads)
         ).decode("UTF-8")
 
         time = float(out.split(" ")[1].strip())

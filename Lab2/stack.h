@@ -45,8 +45,17 @@ typedef struct stack stack_t;
 stack_t* stack_init();
 void stack_obliterate(stack_t* stack);
 
-int stack_push(stack_t* head, void* elem LOCK_PARAM);
-void* stack_pop(stack_t* head LOCK_PARAM);
+int stack_push(stack_t** head_ptr, void* elem LOCK_PARAM);
+void* stack_pop(stack_t** head_ptr LOCK_PARAM);
+
+typedef struct {
+    stack_t** head_ptr;
+    pthread_mutex_t* lock1;
+    pthread_mutex_t* lock2;
+} idiot_data_t;
+
+void aba_idiot_1(idiot_data_t* arg);
+void aba_idiot_2(idiot_data_t* arg);
 
 /* Use this to check if your stack is in a consistent state from time to time */
 int stack_check(stack_t* stack);

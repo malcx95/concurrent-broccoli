@@ -89,18 +89,19 @@ void stack_obliterate(stack_t* stack) {
     }
 }
 
-int stack_push(stack_t* head, void* elem LOCK_PARAM)
+int stack_push(stack_t** head_ptr, void* elem LOCK_PARAM)
 {
 #if NON_BLOCKING == 0
+    stack_t* head = *head_ptr;
     stack_t* new = malloc(sizeof(stack_t));
     
     // empty stack
     if (head->entry == NULL) {
         pthread_mutex_lock(lock);
         head->entry = elem;
-        pthread_mutex_unlock(lock);
-        head->length = 1;
         stack_check(head);
+        head->length = 1;
+        pthread_mutex_unlock(lock);
         return 0;
     }
 
@@ -113,10 +114,26 @@ int stack_push(stack_t* head, void* elem LOCK_PARAM)
     head->entry = elem;
     head->length += 1;
 
+    stack_check(head);
     pthread_mutex_unlock(lock);
 
 #elif NON_BLOCKING == 1
-  // Implement a harware CAS-based stack
+    stack_t* new = malloc(sizeof(stack_t));
+    stack_t* old;
+    do {
+        old = *head_ptr;
+        if(old->entry != NULL) {
+            new->next = old;
+            new->length = old->length + 1;
+        }
+        else {
+            new->next = NULL;
+            new->length = 1;
+        }
+        new->entry = elem;
+    } while (cas(head_ptr, old, new) != old);
+
+    stack_check(*head_ptr);
 #else
   /*** Optional ***/
   // Implement a software CAS-based stack
@@ -125,14 +142,14 @@ int stack_push(stack_t* head, void* elem LOCK_PARAM)
   // Debug practice: you can check if this operation results in a stack in a consistent check
   // It doesn't harm performance as sanity check are disabled at measurement time
   // This is to be updated as your implementation progresses
-  stack_check(head);
 
   return 0;
 }
 
-void* stack_pop(stack_t* head LOCK_PARAM)
+void* stack_pop(stack_t** head_ptr LOCK_PARAM)
 {
 #if NON_BLOCKING == 0
+    stack_t* head = *head_ptr;
     pthread_mutex_lock(lock);
     void* entry = head->entry;
 
@@ -140,27 +157,80 @@ void* stack_pop(stack_t* head LOCK_PARAM)
     if (head->next == NULL) {
         head->entry = NULL;
         head->length = 0;
-        return entry;
+        entry = NULL;
     } else if (head->entry == NULL) {
-        return NULL;
+        entry = NULL;
     }
+    else {
+        stack_t* old_next = head->next;
+        head->next = head->next->next;
+        head->entry = head->next->entry;
+        head->length -= 1;
 
-    stack_t* old_next = head->next;
-    head->next = head->next->next;
-    head->entry = head->next->entry;
-    head->length -= 1;
-
-    free(old_next);
+        free(old_next);
+    }
     
+    stack_check(head);
     pthread_mutex_unlock(lock);
 #elif NON_BLOCKING == 1
-  // Implement a harware CAS-based stack
+    // Implement a harware CAS-based stack
+    
+    stack_t* new = malloc(sizeof(stack_t));
+    void* entry;
+    stack_t* old;
+    do {
+        old = *head_ptr;
+        entry = old->entry;
+
+        if(old->next == NULL) {
+            new->entry = NULL;
+            new->length = 0;
+        }
+        else {
+            new->next = old->next->next;
+            new->entry = old->next->entry;
+            new->length = old->length - 1;
+        }
+    } while(cas(head_ptr, old, new) != old);
+
+    stack_check(*head_ptr);
+
 #else
   /*** Optional ***/
   // Implement a software CAS-based stack
 #endif
-    stack_check(head);
 
-    return 0;
+    return entry;
 }
+
+
+#if NON_BLOCKING == 1 || NON_BLOCKING == 2
+void aba_idiot_1(idiot_data_t* arg) {
+    stack_t** head_ptr = arg->head_ptr;
+    pthread_mutex_t* lock1 = arg->lock1;
+    pthread_mutex_t* lock2 = arg->lock2;
+
+    stack_t* new = malloc(sizeof(stack_t));
+    stack_t* old = *head_ptr;
+    pthread_mutex_unlock(lock2);
+    pthread_mutex_lock(lock1);
+    do {
+        old = *head_ptr;
+        new->entry = 8;
+        new->next = old;
+        new->length = old->length + 1;
+    } while (cas(head_ptr, old, new) != old);
+}
+
+void aba_idiot_2(idiot_data_t* arg) {
+    stack_t** head_ptr = arg->head_ptr;
+    pthread_mutex_t* lock1 = arg->lock1;
+    pthread_mutex_t* lock2 = arg->lock2;
+
+    pthread_mutex_lock(lock2);
+    stack_pop(head_ptr);
+    stack_push(head_ptr, 7);
+    pthread_mutex_unlock(lock1);
+}
+#endif
 

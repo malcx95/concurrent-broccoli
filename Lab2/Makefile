@@ -5,7 +5,7 @@ NB_THREADS=3
 NON_BLOCKING=0
 SUFFIX=
 MEASURE=0
-MAX_PUSH_POP=5000
+MAX_PUSH_POP=50000
 OUT=stack$(SUFFIX)
 DEBUG=0
 
@@ -15,6 +15,10 @@ NON_BLOCKING_SUFFIX=-$(NON_BLOCKING)
 CFLAGS=-g -O0 -Wall -pthread -lrt -DNB_THREADS=$(NB_THREADS) -DNON_BLOCKING=$(NON_BLOCKING) -DMEASURE=$(MEASURE) -DMAX_PUSH_POP=$(MAX_PUSH_POP) -DDEBUG=$(DEBUG)
 
 all: $(OUT)
+	echo "Ringer kompilatorn"
+
+vad_fan_ar_felet:
+	gdb stack
 
 clean:
 	$(RM) stack

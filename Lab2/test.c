@@ -87,7 +87,9 @@ data_t data;
 #if MEASURE != 0
 struct stack_measure_arg
 {
-  int id;
+    int id;
+    pthread_mutex_t* lock;
+    stack_t* stack;
 };
 typedef struct stack_measure_arg stack_measure_arg_t;
 
@@ -104,6 +106,7 @@ stack_measure_pop(void* arg)
     for (i = 0; i < MAX_PUSH_POP / NB_THREADS; i++)
       {
         // See how fast your implementation can pop MAX_PUSH_POP elements in parallel
+        stack_pop(&args->stack, args->lock);
       }
     clock_gettime(CLOCK_MONOTONIC, &t_stop[args->id]);
 
@@ -120,6 +123,7 @@ stack_measure_push(void* arg)
   for (i = 0; i < MAX_PUSH_POP / NB_THREADS; i++)
     {
         // See how fast your implementation can push MAX_PUSH_POP elements in parallel
+        stack_push(args->stack, (void*) i, args->lock);
     }
   clock_gettime(CLOCK_MONOTONIC, &t_stop[args->id]);
 
@@ -163,32 +167,49 @@ int test_non_concurr() {
     pthread_mutex_t lock;
     pthread_mutex_init(&lock, NULL);
     for (void* i = 0x0; i < (void*)0xFF; ++i) {
-        stack_push(stack, i, &lock);
+#if NON_BLOCKING == 0
+        stack_push(&stack, i, &lock);
+#else
+        stack_push(&stack, i);
+#endif
     }
     stack_check(stack);
     for (void* i = (void*)0xfe; i <= (void*)0x0; --i) {
-        void* result = stack_pop(stack, &lock);
+#if NON_BLOCKING == 0
+        void* result = stack_pop(&stack, &lock);
+#else
+        void* result = stack_pop(&stack);
+#endif
         assert(result == i);
     }
     return stack_check(stack);
 }
 
+
+
 int
 test_push_safe()
 {
-  // Make sure your stack remains in a good state with expected content when
-  // several threads push concurrently to it
+    pthread_mutex_t lock;
+    pthread_mutex_init(&lock, NULL);
 
-  // Do some work
-  // stack_push(/* add relevant arguments here */);
-
-  // check if the stack is in a consistent state
-  int res = assert(stack_check(stack));
-
-  // check other properties expected after a push operation
-  // (this is to be updated as your stack design progresses)
-  // Now, the test succeeds
-  return res;// && assert(stack->change_this_member == 0);
+    for (void* i = 0x0; i < (void*)0xFF; ++i) {
+#if NON_BLOCKING == 0
+        stack_push(&stack, i, &lock);
+#else
+        stack_push(&stack, i);
+#endif
+    }
+    stack_check(stack);
+    for (void* i = (void*)0xfe; i <= (void*)0x0; --i) {
+#if NON_BLOCKING == 0
+        void* result = stack_pop(&stack, &lock);
+#else
+        void* result = stack_pop(&stack);
+#endif
+        assert(result == i);
+    }
+    return stack_check(stack);
 }
 
 int
@@ -207,10 +228,46 @@ int
 test_aba()
 {
 #if NON_BLOCKING == 1 || NON_BLOCKING == 2
-  int success, aba_detected = 0;
-  // Write here a test for the ABA problem
-  success = aba_detected;
-  return success;
+    int success, aba_detected = 0;
+
+    idiot_data_t arg;
+
+    pthread_mutex_t lock1;
+    pthread_mutex_t lock2;
+    pthread_mutex_init(&lock1, NULL);
+    pthread_mutex_init(&lock2, NULL);
+    pthread_mutex_lock(&lock1);
+    pthread_mutex_lock(&lock2);
+    
+    stack_t* stack = stack_init();
+    stack_push(&stack, 4);
+    stack_push(&stack, 4);
+
+    arg.lock1 = &lock1;
+    arg.lock2 = &lock2;
+    arg.head_ptr = &stack;
+
+    pthread_t thread1;
+    pthread_t thread2;
+
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE); 
+
+    pthread_create(&thread1, &attr, aba_idiot_1, (void*) &arg);
+    pthread_create(&thread2, &attr, aba_idiot_2, (void*) &arg);
+
+    pthread_join(thread1, NULL);
+    pthread_join(thread2, NULL);
+    // Write here a test for the ABA problem
+    // if (stack->elem == 7 && stack->next->elem == I/);
+    printf("%p\n", stack->entry);
+    if(stack->length == 3) {
+        aba_detected = 1;
+    }
+
+    success = aba_detected;
+    return success;
 #else
   // No ABA is possible with lock-based synchronization. Let the test succeed only
   return 1;
@@ -313,17 +370,24 @@ setbuf(stdout, NULL);
   test_run(test_non_concurr);
 
   test_finalize();
+
 #else
+  pthread_mutex_t lock;
+  pthread_mutex_init(&lock, NULL);
+
   int i;
   pthread_t thread[NB_THREADS];
   pthread_attr_t attr;
   stack_measure_arg_t arg[NB_THREADS];
   pthread_attr_init(&attr);
+  stack = stack_init();
 
   clock_gettime(CLOCK_MONOTONIC, &start);
   for (i = 0; i < NB_THREADS; i++)
     {
       arg[i].id = i;
+      arg[i].lock = &lock;
+      arg[i].stack = stack;
 #if MEASURE == 1
       pthread_create(&thread[i], &attr, stack_measure_pop, (void*)&arg[i]);
 #else
@@ -343,6 +407,8 @@ setbuf(stdout, NULL);
         printf("Thread %d time: %f\n", i, timediff(&t_start[i], &t_stop[i]));
     }
 #endif
+
+  stack_obliterate(stack);
 
   return 0;
 }

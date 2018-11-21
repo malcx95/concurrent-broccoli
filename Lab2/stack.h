@@ -28,9 +28,9 @@
 #define STACK_H
 
 #if NON_BLOCKING == 0
-#define LOCK_PARAM , pthread_mutex_t* lock
+#define SYNC_PARAM , pthread_mutex_t* lock
 #else
-#define LOCK_PARAM
+#define SYNC_PARAM , fheap_t* fheap
 #endif
 
 struct stack
@@ -41,12 +41,19 @@ struct stack
 };
 
 typedef struct stack stack_t;
+const stack_t FAKE_HEAP[MAX_PUSH_POP * NB_THREADS];
+
+typedef struct {
+    stack_t* start;
+    size_t offset;
+} fheap_t;
+
 
 stack_t* stack_init();
 void stack_obliterate(stack_t* stack);
 
-int stack_push(stack_t** head_ptr, void* elem LOCK_PARAM);
-void* stack_pop(stack_t** head_ptr LOCK_PARAM);
+int stack_push(stack_t** head_ptr, void* elem SYNC_PARAM);
+void* stack_pop(stack_t** head_ptr SYNC_PARAM);
 
 typedef struct {
     stack_t** head_ptr;

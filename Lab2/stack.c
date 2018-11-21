@@ -45,6 +45,10 @@
 #endif
 #endif
 
+stack_t* falloc(fheap_t* fheap) {
+    return fheap->start + (fheap->offset++);
+}
+
 int
 stack_check(stack_t* stack)
 {
@@ -84,12 +88,14 @@ stack_t* stack_init() {
 void stack_obliterate(stack_t* stack) {
     while(stack != NULL) {
         stack_t* next = stack->next;
+#if NON_BLOCKING == 0
         free(stack);
+#endif
         stack = next;
     }
 }
 
-int stack_push(stack_t** head_ptr, void* elem LOCK_PARAM)
+int stack_push(stack_t** head_ptr, void* elem SYNC_PARAM)
 {
 #if NON_BLOCKING == 0
     stack_t* head = *head_ptr;
@@ -118,7 +124,7 @@ int stack_push(stack_t** head_ptr, void* elem LOCK_PARAM)
     pthread_mutex_unlock(lock);
 
 #elif NON_BLOCKING == 1
-    stack_t* new = malloc(sizeof(stack_t));
+    stack_t* new = falloc(fheap);
     stack_t* old;
     do {
         old = *head_ptr;
@@ -146,7 +152,7 @@ int stack_push(stack_t** head_ptr, void* elem LOCK_PARAM)
   return 0;
 }
 
-void* stack_pop(stack_t** head_ptr LOCK_PARAM)
+void* stack_pop(stack_t** head_ptr SYNC_PARAM)
 {
 #if NON_BLOCKING == 0
     stack_t* head = *head_ptr;
@@ -175,7 +181,7 @@ void* stack_pop(stack_t** head_ptr LOCK_PARAM)
 #elif NON_BLOCKING == 1
     // Implement a harware CAS-based stack
     
-    stack_t* new = malloc(sizeof(stack_t));
+    stack_t* new = falloc(fheap);
     void* entry;
     stack_t* old;
     do {
@@ -206,6 +212,9 @@ void* stack_pop(stack_t** head_ptr LOCK_PARAM)
 
 #if NON_BLOCKING == 1 || NON_BLOCKING == 2
 void aba_idiot_1(idiot_data_t* arg) {
+    fheap_t fheap;
+    fheap.start = FAKE_HEAP;
+    fheap.offset = 0;
     stack_t** head_ptr = arg->head_ptr;
     pthread_mutex_t* lock1 = arg->lock1;
     pthread_mutex_t* lock2 = arg->lock2;
@@ -223,14 +232,20 @@ void aba_idiot_1(idiot_data_t* arg) {
 }
 
 void aba_idiot_2(idiot_data_t* arg) {
+    fheap_t fheap;
+    fheap.start = FAKE_HEAP + MAX_PUSH_POP;
+    fheap.offset = 0;
+
     stack_t** head_ptr = arg->head_ptr;
     pthread_mutex_t* lock1 = arg->lock1;
     pthread_mutex_t* lock2 = arg->lock2;
 
     pthread_mutex_lock(lock2);
-    stack_pop(head_ptr);
-    stack_push(head_ptr, 7);
+    stack_pop(head_ptr, &fheap);
+    stack_push(head_ptr, 7, &fheap);
     pthread_mutex_unlock(lock1);
 }
+
+
 #endif
 

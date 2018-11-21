@@ -68,10 +68,10 @@ static int num_colors(struct mandelbrot_param* param)
  * mandelbrot set, else the number of iterations
  */
 static int
-is_in_Mandelbrot(float Cre, float Cim, int maxiter)
+is_in_Mandelbrot(double Cre, double Cim, int maxiter)
 {
 	int iter;
-	float x = 0.0, y = 0.0, xto2 = 0.0, yto2 = 0.0, dist2;
+	double x = 0.0, y = 0.0, xto2 = 0.0, yto2 = 0.0, dist2;
 
 	for (iter = 0; dist2 < 4 && iter <= maxiter; iter++)
 	{
@@ -90,7 +90,7 @@ static void
 compute_chunk(struct mandelbrot_param *args)
 {
 	int i, j, val;
-	float Cim, Cre;
+	double Cim, Cre;
 	color_t pixel;
 
 	// Iterate hrough lines
@@ -101,9 +101,9 @@ compute_chunk(struct mandelbrot_param *args)
 		{
 			// Convert the coordinate of the pixel to be calculated to both
 			// real and imaginary parts of the complex number to be checked
-			Cim = (float) i / args->height * (args->upper_i - args->lower_i)
+			Cim = (double) i / args->height * (args->upper_i - args->lower_i)
 			    + args->lower_i;
-			Cre = (float) j / args->width * (args->upper_r - args->lower_r)
+			Cre = (double) j / args->width * (args->upper_r - args->lower_r)
 			    + args->lower_r;
 
 			// Gets the value returned by is_in_mandelbrot() and scale it

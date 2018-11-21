@@ -46,26 +46,75 @@
 #endif
 
 int
-stack_check(stack_t *stack)
+stack_check(stack_t* stack)
 {
 // Do not perform any sanity check if performance is bein measured
 #if MEASURE == 0
 	// Use assert() to check if your stack is in a state that makes sens
 	// This test should always pass 
-	assert(1 == 1);
-
-	// This test fails if the task is not allocated or if the allocation failed
 	assert(stack != NULL);
+
+    int len = stack->length;
+    if (len == 0) {
+        assert(stack->next == NULL);
+        assert(stack->entry == NULL);
+        return 1;
+    }
+    stack_t* next = stack;
+    while (next != NULL) {
+        len--;
+        next = next->next;
+    }
+
+    assert(len == 0);
+
 #endif
 	// The stack is always fine
 	return 1;
 }
 
-int /* Return the type you prefer */
-stack_push(/* Make your own signature */)
+stack_t* stack_init() {
+    stack_t* head = malloc(sizeof(stack_t));
+    head->next = NULL;
+    head->length = 0;
+    head->entry = NULL;
+    return head;
+}
+
+void stack_obliterate(stack_t* stack) {
+    while(stack != NULL) {
+        stack_t* next = stack->next;
+        free(stack);
+        stack = next;
+    }
+}
+
+int stack_push(stack_t* head, void* elem LOCK_PARAM)
 {
 #if NON_BLOCKING == 0
-  // Implement a lock_based stack
+    stack_t* new = malloc(sizeof(stack_t));
+    
+    // empty stack
+    if (head->entry == NULL) {
+        pthread_mutex_lock(lock);
+        head->entry = elem;
+        pthread_mutex_unlock(lock);
+        head->length = 1;
+        stack_check(head);
+        return 0;
+    }
+
+    pthread_mutex_lock(lock);
+
+    new->next = head->next;
+    new->entry = head->entry;
+    new->length = head->length;
+    head->next = new;
+    head->entry = elem;
+    head->length += 1;
+
+    pthread_mutex_unlock(lock);
+
 #elif NON_BLOCKING == 1
   // Implement a harware CAS-based stack
 #else
@@ -76,23 +125,42 @@ stack_push(/* Make your own signature */)
   // Debug practice: you can check if this operation results in a stack in a consistent check
   // It doesn't harm performance as sanity check are disabled at measurement time
   // This is to be updated as your implementation progresses
-  stack_check((stack_t*)1);
+  stack_check(head);
 
   return 0;
 }
 
-int /* Return the type you prefer */
-stack_pop(/* Make your own signature */)
+void* stack_pop(stack_t* head LOCK_PARAM)
 {
 #if NON_BLOCKING == 0
-  // Implement a lock_based stack
+    pthread_mutex_lock(lock);
+    void* entry = head->entry;
+
+    // only one element
+    if (head->next == NULL) {
+        head->entry = NULL;
+        head->length = 0;
+        return entry;
+    } else if (head->entry == NULL) {
+        return NULL;
+    }
+
+    stack_t* old_next = head->next;
+    head->next = head->next->next;
+    head->entry = head->next->entry;
+    head->length -= 1;
+
+    free(old_next);
+    
+    pthread_mutex_unlock(lock);
 #elif NON_BLOCKING == 1
   // Implement a harware CAS-based stack
 #else
   /*** Optional ***/
   // Implement a software CAS-based stack
 #endif
+    stack_check(head);
 
-  return 0;
+    return 0;
 }
 

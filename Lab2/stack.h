@@ -27,15 +27,27 @@
 #ifndef STACK_H
 #define STACK_H
 
+#if NON_BLOCKING == 0
+#define LOCK_PARAM , pthread_mutex_t* lock
+#else
+#define LOCK_PARAM
+#endif
+
 struct stack
 {
-  int change_this_member;
+    struct stack* next;
+    void* entry;
+    int length;
 };
+
 typedef struct stack stack_t;
 
-int stack_push(/* Make your own signature */);
-int stack_pop(/* Make your own signature */);
+stack_t* stack_init();
+void stack_obliterate(stack_t* stack);
+
+int stack_push(stack_t* head, void* elem LOCK_PARAM);
+void* stack_pop(stack_t* head LOCK_PARAM);
 
 /* Use this to check if your stack is in a consistent state from time to time */
-int stack_check(stack_t *stack);
+int stack_check(stack_t* stack);
 #endif /* STACK_H */

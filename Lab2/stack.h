@@ -30,7 +30,7 @@
 #if NON_BLOCKING == 0
 #define SYNC_PARAM , pthread_mutex_t* lock
 #else
-#define SYNC_PARAM , fheap_t* fheap
+#define SYNC_PARAM , stack_t* mini_stack 
 #endif
 
 struct stack
@@ -41,12 +41,9 @@ struct stack
 };
 
 typedef struct stack stack_t;
-const stack_t FAKE_HEAP[MAX_PUSH_POP * NB_THREADS];
-
-typedef struct {
-    stack_t* start;
-    size_t offset;
-} fheap_t;
+stack_t* mini_stack_init();
+void mini_stack_push(stack_t** head, stack_t* elem);
+stack_t* mini_stack_pop(stack_t** head);
 
 
 stack_t* stack_init();

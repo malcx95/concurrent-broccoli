@@ -45,8 +45,27 @@
 #endif
 #endif
 
-stack_t* falloc(fheap_t* fheap) {
-    return fheap->start + (fheap->offset++);
+stack_t* mini_stack_init() {
+    stack_t* curr = NULL;
+    for (size_t i = 0; i < MAX_PUSH_POP + 10; ++i) {
+        stack_t* prev = curr;
+        curr = malloc(sizeof(stack_t));
+        curr->next = prev;
+    }
+    return curr;
+}
+
+void mini_stack_push(stack_t** head, stack_t* elem) {
+    (*head)->next = elem;
+    (*head) = elem;
+}
+
+stack_t* mini_stack_pop(stack_t** head) {
+    stack_t* popped = *head;
+    (*head) = (*head)->next;
+    popped->entry = popped->next = NULL;
+    popped->length = 0;
+    return popped;
 }
 
 int
@@ -89,7 +108,7 @@ void stack_obliterate(stack_t* stack) {
     while(stack != NULL) {
         stack_t* next = stack->next;
 #if NON_BLOCKING == 0
-        free(stack);
+        // free(stack);
 #endif
         stack = next;
     }
@@ -124,7 +143,7 @@ int stack_push(stack_t** head_ptr, void* elem SYNC_PARAM)
     pthread_mutex_unlock(lock);
 
 #elif NON_BLOCKING == 1
-    stack_t* new = falloc(fheap);
+    stack_t* new = mini_stack_pop(&mini_stack);
     stack_t* old;
     do {
         old = *head_ptr;
@@ -180,12 +199,17 @@ void* stack_pop(stack_t** head_ptr SYNC_PARAM)
     pthread_mutex_unlock(lock);
 #elif NON_BLOCKING == 1
     // Implement a harware CAS-based stack
+    if ((*head_ptr)->entry == NULL) {
+        return NULL;
+    }
     
-    stack_t* new = falloc(fheap);
+    stack_t* new = mini_stack_pop(&mini_stack);
     void* entry;
     stack_t* old;
+    stack_t* old_next;
     do {
         old = *head_ptr;
+        old_next = old->next;
         entry = old->entry;
 
         if(old->next == NULL) {
@@ -198,6 +222,9 @@ void* stack_pop(stack_t** head_ptr SYNC_PARAM)
             new->length = old->length - 1;
         }
     } while(cas(head_ptr, old, new) != old);
+
+    mini_stack_push(&mini_stack, old);
+    mini_stack_push(&mini_stack, old_next);
 
     stack_check(*head_ptr);
 
@@ -212,9 +239,6 @@ void* stack_pop(stack_t** head_ptr SYNC_PARAM)
 
 #if NON_BLOCKING == 1 || NON_BLOCKING == 2
 void aba_idiot_1(idiot_data_t* arg) {
-    fheap_t fheap;
-    fheap.start = FAKE_HEAP;
-    fheap.offset = 0;
     stack_t** head_ptr = arg->head_ptr;
     pthread_mutex_t* lock1 = arg->lock1;
     pthread_mutex_t* lock2 = arg->lock2;
@@ -232,17 +256,16 @@ void aba_idiot_1(idiot_data_t* arg) {
 }
 
 void aba_idiot_2(idiot_data_t* arg) {
-    fheap_t fheap;
-    fheap.start = FAKE_HEAP + MAX_PUSH_POP;
-    fheap.offset = 0;
+
+    stack_t* mini_stack = mini_stack_init();
 
     stack_t** head_ptr = arg->head_ptr;
     pthread_mutex_t* lock1 = arg->lock1;
     pthread_mutex_t* lock2 = arg->lock2;
 
     pthread_mutex_lock(lock2);
-    stack_pop(head_ptr, &fheap);
-    stack_push(head_ptr, 7, &fheap);
+    stack_pop(head_ptr, mini_stack);
+    stack_push(head_ptr, 7, mini_stack);
     pthread_mutex_unlock(lock1);
 }
 

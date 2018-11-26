@@ -107,7 +107,7 @@ stack_measure_pop(void* arg)
     for (i = 0; i < MAX_PUSH_POP / NB_THREADS; i++)
       {
         // See how fast your implementation can pop MAX_PUSH_POP elements in parallel
-        stack_pop(&args->stack, 
+        stack_pop(&(args->stack), 
 #if NON_BLOCKING == 0
                 args->lock
 #else
@@ -377,7 +377,7 @@ setbuf(stdout, NULL);
 
 #if MEASURE == 1
   stack_t* mini_stack = mini_stack_init();
-  for (i = 0; i < MAX_PUSH_POP; i++) {
+  for (i = 1; i < MAX_PUSH_POP; i++) {
       stack_push(&stack, i, 
 #if NON_BLOCKING == 1
               mini_stack

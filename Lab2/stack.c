@@ -120,17 +120,16 @@ int stack_push(stack_t** head_ptr, void* elem SYNC_PARAM)
     stack_t* head = *head_ptr;
     stack_t* new = malloc(sizeof(stack_t));
     
+    pthread_mutex_lock(lock);
     // empty stack
-    if (head->entry == NULL) {
-        pthread_mutex_lock(lock);
+    if (head->length == 0) {
         head->entry = elem;
-        stack_check(head);
         head->length = 1;
+        stack_check(head);
         pthread_mutex_unlock(lock);
         return 0;
     }
 
-    pthread_mutex_lock(lock);
 
     new->next = head->next;
     new->entry = head->entry;
@@ -147,7 +146,7 @@ int stack_push(stack_t** head_ptr, void* elem SYNC_PARAM)
     stack_t* old;
     do {
         old = *head_ptr;
-        if(old->entry != NULL) {
+        if(old->length != 0) {
             new->next = old;
             new->length = old->length + 1;
         }
@@ -179,17 +178,17 @@ void* stack_pop(stack_t** head_ptr SYNC_PARAM)
     void* entry = head->entry;
 
     // only one element
-    if (head->next == NULL) {
+    if (head->length == 1) {
         head->entry = NULL;
         head->length = 0;
         entry = NULL;
-    } else if (head->entry == NULL) {
+    } else if (head->length == 0) {
         entry = NULL;
     }
     else {
         stack_t* old_next = head->next;
-        head->next = head->next->next;
         head->entry = head->next->entry;
+        head->next = head->next->next;
         head->length -= 1;
 
         free(old_next);

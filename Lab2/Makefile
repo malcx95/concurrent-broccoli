@@ -15,7 +15,7 @@ NON_BLOCKING_SUFFIX=-$(NON_BLOCKING)
 CFLAGS=-g -O0 -Wall -pthread -lrt -DNB_THREADS=$(NB_THREADS) -DNON_BLOCKING=$(NON_BLOCKING) -DMEASURE=$(MEASURE) -DMAX_PUSH_POP=$(MAX_PUSH_POP) -DDEBUG=$(DEBUG)
 
 all: $(OUT)
-	echo "Ringer kompilatorn"
+	echo "Ringde kompilatorn"
 
 vad_fan_ar_felet:
 	gdb stack

@@ -219,7 +219,6 @@ test_pop_safe()
 int
 test_aba()
 {
-    /*
 #if NON_BLOCKING == 1 || NON_BLOCKING == 2
     int success, aba_detected = 0;
 
@@ -231,10 +230,12 @@ test_aba()
     pthread_mutex_init(&lock2, NULL);
     pthread_mutex_lock(&lock1);
     pthread_mutex_lock(&lock2);
-    
+
+    stack_t* mini_stack = mini_stack_init();
+
     stack_t* stack = stack_init();
-    stack_push(&stack, 4);
-    stack_push(&stack, 4);
+    stack_push(&stack, 4, mini_stack);
+    stack_push(&stack, 4, mini_stack);
 
     arg.lock1 = &lock1;
     arg.lock2 = &lock2;
@@ -254,7 +255,6 @@ test_aba()
     pthread_join(thread2, NULL);
     // Write here a test for the ABA problem
     // if (stack->elem == 7 && stack->next->elem == I/);
-    printf("%p\n", stack->entry);
     if(stack->length == 3) {
         aba_detected = 1;
     }
@@ -265,7 +265,6 @@ test_aba()
   // No ABA is possible with lock-based synchronization. Let the test succeed only
   return 1;
 #endif
-*/
 }
 
 // We test here the CAS function

@@ -28,7 +28,12 @@ unsigned char average_kernel(int ox, int oy, size_t stride, const unsigned char 
 
 unsigned char average_kernel_1d(int o, size_t stride, const unsigned char *m, size_t elemPerPx)
 {
-	// your code here
+    float scaling = 1.0 / elemPerPx;
+    float res = 0;
+    for (int i = -o; i <= o; ++i) {
+        res += m[i*(int)stride];
+    }
+    return res*scaling;
 }
 
 
@@ -89,14 +94,16 @@ int main(int argc, char* argv[])
 	// and conv.setOverlap(<integer>)
 	{
 		auto conv = skepu2::MapOverlap(average_kernel_1d);
+        conv.setOverlapMode(skepu2::Overlap::ColRowWise);
+        conv.setOverlap(radius*imageInfo.elementsPerPixel);
 		conv.setBackend(spec);
 	
 		auto timeTaken = skepu2::benchmark::measureExecTime([&]
 		{
-			// your code here
+			conv(outputMatrix, inputMatrixPad, imageInfo.elementsPerPixel);
 		});
 		
-	//	WritePngFileMatrix(outputMatrix, outputFile + "-separable.png", colorType, imageInfo);
+	    WritePngFileMatrix(outputMatrix, outputFile + "-separable.png", colorType, imageInfo);
 		std::cout << "Time for separable: " << (timeTaken.count() / 10E6) << "\n";
 	}
 	

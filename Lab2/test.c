@@ -235,7 +235,6 @@ test_aba()
 
     stack_t* stack = stack_init();
     stack_push(&stack, 4, mini_stack);
-    stack_push(&stack, 4, mini_stack);
 
     arg.lock1 = &lock1;
     arg.lock2 = &lock2;
@@ -255,7 +254,7 @@ test_aba()
     pthread_join(thread2, NULL);
     // Write here a test for the ABA problem
     // if (stack->elem == 7 && stack->next->elem == I/);
-    if(stack->length == 3) {
+    if(stack->length == 2) {
         aba_detected = 1;
     }
 

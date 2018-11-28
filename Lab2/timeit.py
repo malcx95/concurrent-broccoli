@@ -1,12 +1,12 @@
+#!/usr/bin/python3
 import subprocess
 
 
 def main():
-    l = []
-    res = []
     # for nb in ('0', '1'):
     for nb in (str(x) for x in (0, 1)):
         for measure in map(str, range(1,3)):
+            l = []
             for num_threads in range(1, 17):
                 print("nb {}, measure {}, num_threads {}".format(nb, measure, num_threads))
                 print("Compiling...")

@@ -18,7 +18,7 @@
 # Default values which can be changed in Makefile.in
 
 # Default backend set for SkePU precompiler.
-BACKENDS = -openmp -opencl # -cuda
+BACKENDS = -openmp # -opencl # -cuda
 
 SKEPU_OPTIONS =
 PRECOMPILER_OPTIONS =

@@ -47,7 +47,7 @@
 
 stack_t* mini_stack_init() {
     stack_t* curr = NULL;
-    for (size_t i = 0; i < MAX_PUSH_POP + 10; ++i) {
+    for (size_t i = 0; i < MAX_PUSH_POP*2; ++i) {
         stack_t* prev = curr;
         curr = malloc(sizeof(stack_t));
         curr->next = prev;
@@ -56,12 +56,20 @@ stack_t* mini_stack_init() {
 }
 
 void mini_stack_push(stack_t** head, stack_t* elem) {
+    if(elem == NULL) {
+        int* ptr = NULL;
+        *(ptr) = 5;
+    }
     (*head)->next = elem;
     (*head) = elem;
 }
 
 stack_t* mini_stack_pop(stack_t** head) {
     stack_t* popped = *head;
+    if((*head)->next == NULL) {
+        int* ptr = NULL;
+        *(ptr) = 5;
+    }
     (*head) = (*head)->next;
     popped->entry = popped->next = NULL;
     popped->length = 0;
@@ -142,7 +150,7 @@ int stack_push(stack_t** head_ptr, void* elem SYNC_PARAM)
     pthread_mutex_unlock(lock);
 
 #elif NON_BLOCKING == 1
-    stack_t* new = mini_stack_pop(&mini_stack);
+    stack_t* new = mini_stack_pop(mini_stack);
     stack_t* old;
     do {
         old = *head_ptr;
@@ -198,11 +206,14 @@ void* stack_pop(stack_t** head_ptr SYNC_PARAM)
     pthread_mutex_unlock(lock);
 #elif NON_BLOCKING == 1
     // Implement a harware CAS-based stack
-    if ((*head_ptr)->entry == NULL) {
+    if ((*head_ptr)->length == 0) {
         return NULL;
+    } else if ((*head_ptr)->length == 1) {
+        (*head_ptr)->length = 0;
+        return (*head_ptr)->entry;
     }
     
-    stack_t* new = mini_stack_pop(&mini_stack);
+    stack_t* new = mini_stack_pop(mini_stack);
     void* entry;
     stack_t* old;
     stack_t* old_next;
@@ -222,8 +233,10 @@ void* stack_pop(stack_t** head_ptr SYNC_PARAM)
         }
     } while(cas(head_ptr, old, new) != old);
 
-    mini_stack_push(&mini_stack, old);
-    mini_stack_push(&mini_stack, old_next);
+    if(old->length > 1) {
+        mini_stack_push(mini_stack, old);
+        mini_stack_push(mini_stack, old_next);
+    }
 
     stack_check(*head_ptr);
 

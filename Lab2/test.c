@@ -111,7 +111,7 @@ stack_measure_pop(void* arg)
 #if NON_BLOCKING == 0
                 args->lock
 #else
-                mini_stack
+                &mini_stack
 #endif
                 );
       }
@@ -135,7 +135,7 @@ stack_measure_push(void* arg)
 #if NON_BLOCKING == 0
                 args->lock
 #else
-                mini_stack
+                &mini_stack
 #endif
                 );
     }
@@ -168,7 +168,7 @@ test_teardown()
   // Do not forget to free your stacks after each test
   // to avoid memory leaks
   // free(stack);
-  stack_obliterate(stack);
+  //stack_obliterate(stack);
 }
 
 void
@@ -189,7 +189,7 @@ test_push_safe()
 #if NON_BLOCKING == 0
         stack_push(&stack, i, &lock);
 #else
-        stack_push(&stack, i, mini_stack);
+        stack_push(&stack, i, &mini_stack);
 #endif
     }
     stack_check(stack);
@@ -197,7 +197,7 @@ test_push_safe()
 #if NON_BLOCKING == 0
         void* result = stack_pop(&stack, &lock);
 #else
-        void* result = stack_pop(&stack, mini_stack);
+        void* result = stack_pop(&stack, &mini_stack);
 #endif
         assert(result == i);
     }
@@ -234,7 +234,7 @@ test_aba()
     stack_t* mini_stack = mini_stack_init();
 
     stack_t* stack = stack_init();
-    stack_push(&stack, 4, mini_stack);
+    stack_push(&stack, 4, &mini_stack);
 
     arg.lock1 = &lock1;
     arg.lock2 = &lock2;
@@ -378,7 +378,7 @@ setbuf(stdout, NULL);
   for (i = 1; i < MAX_PUSH_POP; i++) {
       stack_push(&stack, i, 
 #if NON_BLOCKING == 1
-              mini_stack
+              &mini_stack
 #else
               &lock
 #endif
@@ -412,7 +412,7 @@ setbuf(stdout, NULL);
     }
 #endif
 
-  stack_obliterate(stack);
+  //stack_obliterate(stack);
 
   return 0;
 }

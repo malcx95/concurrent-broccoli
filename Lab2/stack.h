@@ -30,7 +30,7 @@
 #if NON_BLOCKING == 0
 #define SYNC_PARAM , pthread_mutex_t* lock
 #else
-#define SYNC_PARAM , stack_t* mini_stack 
+#define SYNC_PARAM , stack_t** mini_stack 
 #endif
 
 struct stack

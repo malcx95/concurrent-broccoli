@@ -100,7 +100,7 @@ int main(int argc, char* argv[])
 	{
 		auto conv = skepu2::MapOverlap(average_kernel_1d);
         conv.setOverlapMode(skepu2::Overlap::ColRowWise);
-        conv.setOverlap(radius*imageInfo.elementsPerPixel);
+        conv.setOverlap(radius);
 		conv.setBackend(spec);
         // conv2.setOverlapMode(skepu2::Overlap::ColWise);
         // conv2.setOverlap(radius*imageInfo.elementsPerPixel);

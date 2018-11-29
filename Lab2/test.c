@@ -234,7 +234,7 @@ test_aba()
     stack_t* mini_stack = mini_stack_init();
 
     stack_t* stack = stack_init();
-    stack_push(&stack, 4, mini_stack);
+    stack_push(&stack, (void*) 4, mini_stack);
 
     arg.lock1 = &lock1;
     arg.lock2 = &lock2;
@@ -366,7 +366,6 @@ setbuf(stdout, NULL);
 
 #else
 
-  int i;
   pthread_t thread[NB_THREADS];
   pthread_attr_t attr;
   stack_measure_arg_t arg[NB_THREADS];
@@ -375,8 +374,8 @@ setbuf(stdout, NULL);
 
 #if MEASURE == 1
   stack_t* mini_stack = mini_stack_init();
-  for (i = 1; i < MAX_PUSH_POP; i++) {
-      stack_push(&stack, i, 
+  for (size_t i = 1; i < MAX_PUSH_POP; i++) {
+      stack_push(&stack, (void*) i, 
 #if NON_BLOCKING == 1
               mini_stack
 #else
@@ -387,7 +386,7 @@ setbuf(stdout, NULL);
 #endif
 
   clock_gettime(CLOCK_MONOTONIC, &start);
-  for (i = 0; i < NB_THREADS; i++)
+  for (size_t i = 0; i < NB_THREADS; i++)
     {
       arg[i].id = i;
       arg[i].lock = &lock;
@@ -399,14 +398,14 @@ setbuf(stdout, NULL);
 #endif
     }
 
-  for (i = 0; i < NB_THREADS; i++)
+  for (size_t i = 0; i < NB_THREADS; i++)
     {
       pthread_join(thread[i], NULL);
     }
   clock_gettime(CLOCK_MONOTONIC, &stop);
 
   // Print out results
-  for (i = 0; i < NB_THREADS; i++)
+  for (int i = 0; i < NB_THREADS; i++)
     {
         printf("Thread %d time: %f\n", i, timediff(&t_start[i], &t_stop[i]));
     }

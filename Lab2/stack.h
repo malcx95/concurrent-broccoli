@@ -58,8 +58,8 @@ typedef struct {
     pthread_mutex_t* lock2;
 } idiot_data_t;
 
-void aba_idiot_1(void* arg);
-void aba_idiot_2(void* arg);
+void* aba_idiot_1(void* arg);
+void* aba_idiot_2(void* arg);
 
 /* Use this to check if your stack is in a consistent state from time to time */
 int stack_check(stack_t* stack);

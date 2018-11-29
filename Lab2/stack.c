@@ -155,7 +155,7 @@ int stack_push(stack_t** head_ptr, void* elem SYNC_PARAM)
             new->length = 1;
         }
         new->entry = elem;
-    } while (cas(head_ptr, old, new) != old);
+    } while (cas((size_t*) head_ptr, (size_t) old, (size_t) new) != (size_t) old);
 
     stack_check(*head_ptr);
 #else
@@ -220,7 +220,7 @@ void* stack_pop(stack_t** head_ptr SYNC_PARAM)
             new->entry = old->next->entry;
             new->length = old->length - 1;
         }
-    } while(cas(head_ptr, old, new) != old);
+    } while(cas((size_t*) head_ptr, (size_t) old, (size_t) new) != (size_t) old);
 
     mini_stack_push(&mini_stack, old);
     mini_stack_push(&mini_stack, old_next);
@@ -237,7 +237,7 @@ void* stack_pop(stack_t** head_ptr SYNC_PARAM)
 
 
 #if NON_BLOCKING == 1 || NON_BLOCKING == 2
-void aba_idiot_1(void* _arg) {
+void* aba_idiot_1(void* _arg) {
     idiot_data_t* arg = _arg;
     stack_t** head_ptr = arg->head_ptr;
     pthread_mutex_t* lock1 = arg->lock1;
@@ -262,12 +262,13 @@ void aba_idiot_1(void* _arg) {
             new->length = 1;
         }
         new->entry = (void*)8;
-    } while (cas(head_ptr, old, new) != old);
+    } while (cas((size_t*) head_ptr, (size_t) old, (size_t) new) != (size_t) old);
 
     printf("Thread 1 is done\n");
+    return NULL;
 }
 
-void aba_idiot_2(void* _arg) {
+void* aba_idiot_2(void* _arg) {
     idiot_data_t* arg = _arg;
     stack_t* mini_stack = mini_stack_init();
 
@@ -280,9 +281,10 @@ void aba_idiot_2(void* _arg) {
     printf("Thread 2 popping\n");
     stack_pop(head_ptr, mini_stack);
     printf("Thread 2 pushing\n");
-    stack_push(head_ptr, 7, mini_stack);
+    stack_push(head_ptr, (void*) 7, mini_stack);
     printf("Thread 2 done, unlocking lock 1\n");
     pthread_mutex_unlock(lock1);
+    return NULL;
 }
 
 

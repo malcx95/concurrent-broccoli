@@ -28,11 +28,17 @@ unsigned char average_kernel(int ox, int oy, size_t stride, const unsigned char 
 
 unsigned char average_kernel_1d(int o, size_t stride, const unsigned char *m, size_t elemPerPx)
 {
-    float scaling = 1.0 / (o/elemPerPx*2+1);
     float res = 0;
-    for (int i = -o; i <= o; i += elemPerPx) {
-        res += m[i];
+    int num_elems = 0;
+    int step = 1;
+    if (stride == 1) {
+        step = elemPerPx;
     }
+    for (int i = -o*step; i <= o*step; i += step) {
+        res += m[i*(int)stride];
+        num_elems++;
+    }
+    float scaling = 1/((float)num_elems);
     return res*scaling;
 }
 
@@ -74,7 +80,6 @@ int main(int argc, char* argv[])
 	ImageInfo imageInfo;
 	skepu2::Matrix<unsigned char> inputMatrixPad = ReadAndPadPngFileToMatrix(inputFileName, radius, colorType, imageInfo);
 	skepu2::Matrix<unsigned char> inputMatrix = ReadPngFileToMatrix(inputFileName, colorType, imageInfo);
-	skepu2::Matrix<unsigned char> intermediateMatrix(imageInfo.height, imageInfo.width * imageInfo.elementsPerPixel, 120);
 	skepu2::Matrix<unsigned char> outputMatrix(imageInfo.height, imageInfo.width * imageInfo.elementsPerPixel, 120);
 	// more containers...?
 	
@@ -102,14 +107,10 @@ int main(int argc, char* argv[])
         conv.setOverlapMode(skepu2::Overlap::ColRowWise);
         conv.setOverlap(radius);
 		conv.setBackend(spec);
-        // conv2.setOverlapMode(skepu2::Overlap::ColWise);
-        // conv2.setOverlap(radius*imageInfo.elementsPerPixel);
-		// conv2.setBackend(spec);
 	
 		auto timeTaken = skepu2::benchmark::measureExecTime([&]
 		{
 			conv(outputMatrix, inputMatrix, imageInfo.elementsPerPixel);
-			// conv2(outputMatrix, intermediateMatrix, imageInfo.elementsPerPixel);
 		});
 		
 	    WritePngFileMatrix(outputMatrix, outputFile + "-separable.png", colorType, imageInfo);

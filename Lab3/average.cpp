@@ -47,8 +47,12 @@ unsigned char average_kernel_1d(int o, size_t stride, const unsigned char *m, si
 unsigned char gaussian_kernel(int o, size_t stride, const unsigned char *m, const skepu2::Vec<float> stencil, size_t elemPerPx)
 {
     float res = 0;
-    for (int i = -o; i <= o; i += elemPerPx) {
-        res += m[i] * stencil[i];
+    int step = 1;
+    if (stride == 1) {
+        step = elemPerPx;
+    }
+    for (int i = -o; i <= o; ++i) {
+        res += m[i*(int)(stride*step)] * stencil[i];
     }
     return res;
 }
@@ -123,7 +127,7 @@ int main(int argc, char* argv[])
 		skepu2::Vector<float> stencil = sampleGaussian(radius);
 		auto conv = skepu2::MapOverlap(gaussian_kernel);
         conv.setOverlapMode(skepu2::Overlap::ColRowWise);
-        conv.setOverlap(radius*imageInfo.elementsPerPixel);
+        conv.setOverlap(radius);
 		conv.setBackend(spec);
 			
 		// skeleton instance, etc here (remember to set backend)

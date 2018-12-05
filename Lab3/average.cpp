@@ -28,11 +28,17 @@ unsigned char average_kernel(int ox, int oy, size_t stride, const unsigned char 
 
 unsigned char average_kernel_1d(int o, size_t stride, const unsigned char *m, size_t elemPerPx)
 {
-    float scaling = 1.0 / elemPerPx;
     float res = 0;
-    for (int i = -o; i <= o; ++i) {
-        res += m[i*(int)stride];
+    int num_elems = 0;
+    int step = 1;
+    if (stride == 1) {
+        step = elemPerPx;
     }
+    for (int i = -o*step; i <= o*step; i += step) {
+        res += m[i*(int)stride];
+        num_elems++;
+    }
+    float scaling = 1/((float)num_elems);
     return res*scaling;
 }
 
@@ -40,7 +46,15 @@ unsigned char average_kernel_1d(int o, size_t stride, const unsigned char *m, si
 
 unsigned char gaussian_kernel(int o, size_t stride, const unsigned char *m, const skepu2::Vec<float> stencil, size_t elemPerPx)
 {
-	// your code here
+    float res = 0;
+    int step = 1;
+    if (stride == 1) {
+        step = elemPerPx;
+    }
+    for (int i = -o; i <= o; ++i) {
+        res += m[i*(int)(stride*step)] * stencil[i + o];
+    }
+    return res;
 }
 
 
@@ -95,12 +109,12 @@ int main(int argc, char* argv[])
 	{
 		auto conv = skepu2::MapOverlap(average_kernel_1d);
         conv.setOverlapMode(skepu2::Overlap::ColRowWise);
-        conv.setOverlap(radius*imageInfo.elementsPerPixel);
+        conv.setOverlap(radius);
 		conv.setBackend(spec);
 	
 		auto timeTaken = skepu2::benchmark::measureExecTime([&]
 		{
-			conv(outputMatrix, inputMatrixPad, imageInfo.elementsPerPixel);
+			conv(outputMatrix, inputMatrix, imageInfo.elementsPerPixel);
 		});
 		
 	    WritePngFileMatrix(outputMatrix, outputFile + "-separable.png", colorType, imageInfo);
@@ -111,15 +125,17 @@ int main(int argc, char* argv[])
 	// Separable gaussian
 	{
 		skepu2::Vector<float> stencil = sampleGaussian(radius);
-			
-		// skeleton instance, etc here (remember to set backend)
-	
+		auto conv = skepu2::MapOverlap(gaussian_kernel);
+        conv.setOverlapMode(skepu2::Overlap::ColRowWise);
+        conv.setOverlap(radius);
+		conv.setBackend(spec);
+
 		auto timeTaken = skepu2::benchmark::measureExecTime([&]
 		{
-			// your code here
+			conv(outputMatrix, inputMatrix, stencil, imageInfo.elementsPerPixel);
 		});
 	
-	//	WritePngFileMatrix(outputMatrix, outputFile + "-gaussian.png", colorType, imageInfo);
+	    WritePngFileMatrix(outputMatrix, outputFile + "-gaussian.png", colorType, imageInfo);
 		std::cout << "Time for gaussian: " << (timeTaken.count() / 10E6) << "\n";
 	}
 	

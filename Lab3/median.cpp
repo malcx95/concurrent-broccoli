@@ -17,9 +17,42 @@
 #include "support.h"
 
 
+void swap(unsigned char* x1, unsigned char* x2) {
+    unsigned char tmp = *x1;
+    *x1 = *x2;
+    *x2 = tmp;
+}
+
+
+void insertion_sort(int length, unsigned char* array) {
+    for (unsigned i = 1; i < length; ++i) {
+        unsigned j = i;
+        while (j > 0 && array[j-1] > array[j]) {
+            swap(&array[j-1], &array[j]);
+            j--;
+        }
+    }
+}
+
+
 unsigned char median_kernel(int ox, int oy, size_t stride, const unsigned char *image, size_t elemPerPx)
 {
-	// your code here
+    int num_elements = (ox/elemPerPx*2+1)*(oy*2+1);
+    unsigned char temp[num_elements];
+
+    // copy to temp array
+    unsigned index = 0;
+	for (int y = -oy; y <= oy; ++y) {
+		for (int x = -ox; x <= ox; x += elemPerPx) {
+            temp[index] = image[y*(int)stride+x];
+            index++;
+        }
+    }
+    
+    insertion_sort(num_elements, temp);
+    
+    return temp[(unsigned)num_elements/2];
+
 }
 
 

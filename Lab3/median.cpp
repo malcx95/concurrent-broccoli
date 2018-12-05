@@ -48,9 +48,9 @@ unsigned char median_kernel(int ox, int oy, size_t stride, const unsigned char *
             index++;
         }
     }
-    
+
     insertion_sort(num_elements, temp);
-    
+
     return temp[(unsigned)num_elements/2];
 
 }

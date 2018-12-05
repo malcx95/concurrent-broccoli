@@ -52,7 +52,7 @@ unsigned char gaussian_kernel(int o, size_t stride, const unsigned char *m, cons
         step = elemPerPx;
     }
     for (int i = -o; i <= o; ++i) {
-        res += m[i*(int)(stride*step)] * stencil[i];
+        res += m[i*(int)(stride*step)] * stencil[i + o];
     }
     return res;
 }
@@ -129,9 +129,7 @@ int main(int argc, char* argv[])
         conv.setOverlapMode(skepu2::Overlap::ColRowWise);
         conv.setOverlap(radius);
 		conv.setBackend(spec);
-			
-		// skeleton instance, etc here (remember to set backend)
-	
+
 		auto timeTaken = skepu2::benchmark::measureExecTime([&]
 		{
 			conv(outputMatrix, inputMatrix, stencil, imageInfo.elementsPerPixel);

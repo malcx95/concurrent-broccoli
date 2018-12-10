@@ -5,10 +5,8 @@
 
 #include <stdio.h>
 #include <math.h>
+#include "config.h"
 
-const int GRID_SIZE = 1;
-const int BLOCK_SIZE = 2048;
-const int N = GRID_SIZE*BLOCK_SIZE;
 
 __global__
 void simple(float* in1, float* in2, float* out)
@@ -66,21 +64,21 @@ int main()
     float myVerySpecial_Time_not_t;
     cudaEventElapsedTime(&myVerySpecial_Time_not_t, event_start, event_end);
 
-    printf("Time elapsed: %f\n", myVerySpecial_Time_not_t);
+    printf("%f\n", myVerySpecial_Time_not_t);
 
-    for (int i = 0; i < N; i++)
-    {
-        for (int j = 0; j < N; j++)
-        {
-            printf("%0.2f ", c[i+j*N]);
-        }
-        printf("\n");
-    }
+    // for (int i = 0; i < N; i++)
+    // {
+    //     for (int j = 0; j < N; j++)
+    //     {
+    //         printf("%0.2f ", c[i+j*N]);
+    //     }
+    //     printf("\n");
+    // }
 
     cudaFree(a_cuda);
     cudaFree(b_cuda);
     cudaFree(c_cuda);
 
-    printf("done\n");
+    // printf("done\n");
     return EXIT_SUCCESS;
 }

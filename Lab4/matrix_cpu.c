@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include "milli.h"
 #include <stdlib.h>
+#include "config.h"
 
 void add_matrix(float *a, float *b, float *c, int N)
 {
@@ -19,7 +20,7 @@ void add_matrix(float *a, float *b, float *c, int N)
 
 int main()
 {
-    const int N = 1024*16;
+    //const int N = 1024*16;
 
     float* a = malloc(sizeof(float) * N * N);
     float* b = malloc(sizeof(float) * N * N);
@@ -37,7 +38,7 @@ int main()
     add_matrix(a, b, c, N);
 
     int timeend = GetMicroseconds();
-    printf("Time elapsed on CPU: %f\n", (timeend - time__________________________________________________________________________________________waitforit___________________________________________________________________________________________________________almostthere__________________start) / 1000.f);
+    printf("%f\n", (timeend - time__________________________________________________________________________________________waitforit___________________________________________________________________________________________________________almostthere__________________start) / 1000.f);
     
     // for (int i = 0; i < N; i++)
     // {

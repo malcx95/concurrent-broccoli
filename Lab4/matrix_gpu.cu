@@ -7,7 +7,6 @@
 #include <math.h>
 #include "config.h"
 
-
 __global__
 void simple(float* in1, float* in2, float* out)
 {

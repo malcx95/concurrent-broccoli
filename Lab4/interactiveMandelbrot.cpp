@@ -24,6 +24,8 @@
 #include <stdlib.h>
 #include <math.h>
 
+#include "milli.h"
+
 // Image data
 unsigned char *pixels = NULL;
 int gImageWidth, gImageHeight;
@@ -37,10 +39,10 @@ void initBitmap(int width, int height)
     gImageHeight = height;
 }
 
-#define DIM 512
+#define DIM 1024
 
 // Select precision here! float or double!
-#define MYFLOAT double
+#define MYFLOAT float
 
 // User controlled parameters
 int maxiter = 212;
@@ -169,7 +171,10 @@ void PrintHelp()
 // Compute fractal and display image
 void Draw()
 {
+    int start = GetMicroseconds();
     computeFractal(pixels);
+    int end = GetMicroseconds();
+    printf("Took %i usec\n", end-start);
     
     // Dump the whole picture onto the screen. (Old-style OpenGL but without lots of geometry that doesn't matter so much.)
     glClearColor( 0.0, 0.0, 0.0, 1.0 );
@@ -259,12 +264,12 @@ int main( int argc, char** argv)
     glutInit(&argc, argv);
     glutInitDisplayMode( GLUT_DOUBLE | GLUT_RGBA );
     glutInitWindowSize( DIM, DIM );
-    glutCreateWindow("Mandelbrot explorer (CPU)");
+    glutCreateWindow("ahs");
     glutDisplayFunc(Draw);
     glutMouseFunc(mouse_button);
     glutMotionFunc(mouse_motion);
     glutKeyboardFunc(KeyboardProc);
-    glutReshapeFunc(Reshape);
+    // glutReshapeFunc(Reshape);
     
     initBitmap(DIM, DIM);
     

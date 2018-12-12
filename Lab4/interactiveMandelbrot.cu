@@ -24,6 +24,8 @@
 #include <stdlib.h>
 #include <math.h>
 
+#include "milli.h"
+
 // Image data
 unsigned char *pixels = NULL;
 unsigned char *cuda_peter = NULL;
@@ -38,10 +40,10 @@ void initBitmap(int width, int height)
     gImageHeight = height;
 }
 
-#define DIM 512
+#define DIM 1024
 
 // Select precision here! float or double!
-#define MYFLOAT double
+#define MYFLOAT float
 
 // User controlled parameters
 int maxiter = 212;
@@ -104,22 +106,22 @@ int mandelbrot(int x, int y, int maxiter, MYFLOAT offsetx,
 }
 
 __global__
-void fractal_kernel(unsigned char* out, int* maxiter, MYFLOAT* offsetx,
-        MYFLOAT* offsety, MYFLOAT* zoom, MYFLOAT* scale) {
+void fractal_kernel(unsigned char* out, int maxiter, MYFLOAT offsetx,
+        MYFLOAT offsety, MYFLOAT zoom, MYFLOAT scale) {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
 
-    int offset = x + y * DIM;
+    int offset = x + y*DIM;
 
     // now calculate the value at that position
-    int fractalValue = mandelbrot(x, y, *maxiter, *offsetx, *offsety, *zoom, *scale);
+    int fractalValue = mandelbrot(x, y, maxiter, offsetx, offsety, zoom, scale);
     
     // Colorize it
-    int red = 255 * fractalValue/ *maxiter;
+    int red = 255 * fractalValue/ maxiter;
     if (red > 255) red = 255 - red;
-    int green = 255 * fractalValue*4/ *maxiter;
+    int green = 255 * fractalValue*4/ maxiter;
     if (green > 255) green = 255 - green;
-    int blue = 255 * fractalValue*20/ *maxiter;
+    int blue = 255 * fractalValue*20/ maxiter;
     if (blue > 255) blue = 255 - blue;
     
     out[offset*4 + 0] = red;
@@ -131,8 +133,10 @@ void fractal_kernel(unsigned char* out, int* maxiter, MYFLOAT* offsetx,
 
 void computeFractal()
 {
-    fractal_kernel<<<1, DIM>>>(cuda_peter, cuda_maxiter, cuda_offsetx, cuda_offsety, cuda_zoom, cuda_scale);
-    cudaMemcpy(pixels, cuda_peter, DIM*DIM, cudaMemcpyDeviceToHost);
+    dim3 grid(DIM/16, DIM/16);
+    dim3 block(16, 16);
+    fractal_kernel<<<grid, block>>>(cuda_peter, maxiter, offsetx, offsety, zoom, scale);
+    cudaMemcpy(pixels, cuda_peter, DIM*DIM*4, cudaMemcpyDeviceToHost);
 }
 
 char print_help = 0;
@@ -187,13 +191,16 @@ void PrintHelp()
 // Compute fractal and display image
 void Draw()
 {
-    cudaMemcpy(cuda_maxiter, &maxiter, 1, cudaMemcpyHostToDevice);
-    cudaMemcpy(cuda_offsetx, &offsetx, 1, cudaMemcpyHostToDevice);
-    cudaMemcpy(cuda_offsety, &offsety, 1, cudaMemcpyHostToDevice);
-    cudaMemcpy(cuda_zoom, &zoom, 1, cudaMemcpyHostToDevice);
-    cudaMemcpy(cuda_scale, &scale, 1, cudaMemcpyHostToDevice);
-
+    int start = GetMicroseconds();
     computeFractal();
+    int end = GetMicroseconds();
+    printf("Took %i usec\n", end-start);
+
+    cudaError_t err = cudaGetLastError();
+    if(err != cudaSuccess) {
+        printf("Error: %s\n", cudaGetErrorString(err));
+    }
+
     
     // Dump the whole picture onto the screen. (Old-style OpenGL but without lots of geometry that doesn't matter so much.)
     glClearColor( 0.0, 0.0, 0.0, 1.0 );

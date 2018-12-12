@@ -13,10 +13,10 @@ ring_gpun:
 
 bega_mandelbrot:
 	@>&2 echo "\033[0;31mBegăr mandelbrot\033[0m"
-	@g++ interactiveMandelbrot.cpp -o interactiveMandelbrot -lglut -lGL
+	@g++ interactiveMandelbrot.cpp milli.c -o interactiveMandelbrot -lglut -lGL
 	@./interactiveMandelbrot
 
 gpu_bega_mandelbrot:
 	@>&2 echo "\033[0;31mBegăr mandelbrot\033[0m"
-	@nvcc interactiveMandelbrot.cu -o interactiveMandelbrot_gpu -lglut -lGL
+	@nvcc interactiveMandelbrot.cu milli.c -o interactiveMandelbrot_gpu -lglut -lGL
 	@./interactiveMandelbrot_gpu

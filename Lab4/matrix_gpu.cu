@@ -12,7 +12,7 @@ void simple(float* in1, float* in2, float* out)
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     int idy = blockIdx.y * blockDim.y + threadIdx.y;
-    int id = idx * N + idy;
+    int id = idx + idy*N;
     out[id] = in1[id] + in2[id];
 }
 

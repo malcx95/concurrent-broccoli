@@ -30,41 +30,61 @@
 #include "milli.h"
 
 // Use these for setting shared memory size.
-#define maxKernelSizeX 10
-#define maxKernelSizeY 10
-
+#define MAX_KERNEL_SIZE_X 10
+#define MAX_KERNEL_SIZE_Y 10
+#define BLOCK_SIZE 16
+#define SHARED_STUFF_SIZE_X BLOCK_SIZE+MAX_KERNEL_SIZE_X*2
+#define SHARED_STUFF_SIZE_Y BLOCK_SIZE+MAX_KERNEL_SIZE_Y*2
+#define SHARED_STUFF_SIZE SHARED_STUFF_SIZE_X*SHARED_STUFF_SIZE_Y*3
 
 __global__ void filter(unsigned char *image, unsigned char *out, const unsigned int imagesizex, const unsigned int imagesizey, const int kernelsizex, const int kernelsizey)
 { 
+    __shared__ unsigned char shared_stuff[SHARED_STUFF_SIZE_X][SHARED_STUFF_SIZE_Y][3];
+
     // map from blockIdx to pixel position
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    
-    int dy, dx;
-    unsigned int sumx, sumy, sumz;
-    
+    int patch_start_x = blockIdx.x * blockDim.x;
+    int patch_start_y = blockIdx.y * blockDim.y;
+    int xxx = patch_start_x + threadIdx.x;
+    int yyy = patch_start_y + threadIdx.y;
+    size_t offset = threadIdx.x + threadIdx.y*blockDim.x;
+    for (size_t i = offset; i < SHARED_STUFF_SIZE; i+=blockDim.x*blockDim.y) {
+        size_t r_x_index = patch_start_x + i % SHARED_STUFF_SIZE_X;
+        size_t r_y_index = patch_start_y + i / SHARED_STUFF_SIZE_X;
+        size_t r_index = (r_x_index + r_y_index * imagesizex) * 3;
+        out[r_index] = 128 + ((float)i/(float)SHARED_STUFF_SIZE)*127;
+        out[r_index+1] = 255;
+        shared_stuff[i % SHARED_STUFF_SIZE_X][i / SHARED_STUFF_SIZE_X][0] = image[r_index];
+        shared_stuff[i % SHARED_STUFF_SIZE_X][i / SHARED_STUFF_SIZE_X][1] = image[r_index+1];
+        shared_stuff[i % SHARED_STUFF_SIZE_X][i / SHARED_STUFF_SIZE_X][2] = image[r_index+2];
+    }
+
+    int x = threadIdx.x + kernelsizex/2;
+    int y = threadIdx.y*SHARED_STUFF_SIZE_X + kernelsizey/2;
+
+
     int divby = (2*kernelsizex+1)*(2*kernelsizey+1); // Works for box filters only!
 
     // If inside image 
-    if (x < imagesizex && y < imagesizey) {
+    if (xxx < imagesizex && yyy < imagesizey) {
         // Filter kernel (simple box filter)
-        sumx = 0;
-        sumy = 0;
-        sumz = 0;
-        for(dy=-kernelsizey;dy<=kernelsizey;dy++) {
-            for(dx=-kernelsizex;dx<=kernelsizex;dx++) {
-                // Use max and min to avoid branching!
-                int yy = min(max(y+dy, 0), imagesizey-1);
-                int xx = min(max(x+dx, 0), imagesizex-1);
+        unsigned int sumx = 0;
+        unsigned int sumy = 0;
+        unsigned int sumz = 0;
 
-                sumx += image[((yy)*imagesizex+(xx))*3+0];
-                sumy += image[((yy)*imagesizex+(xx))*3+1];
-                sumz += image[((yy)*imagesizex+(xx))*3+2];
+        for(int dy=-kernelsizey;dy<=kernelsizey;dy++) {
+            for(int dx=-kernelsizex;dx<=kernelsizex;dx++) {
+                // Use max and min to avoid branching!
+                int xx = min(max(x+dx, 0), SHARED_STUFF_SIZE_X-1);
+                int yy = min(max(y+dy, 0), SHARED_STUFF_SIZE_Y-1);
+
+                sumx += shared_stuff[xx][yy][0];
+                sumy += shared_stuff[xx][yy][1];
+                sumz += shared_stuff[xx][yy][2];
             }
         }
-        out[(y*imagesizex+x)*3+0] = sumx/divby;
-        out[(y*imagesizex+x)*3+1] = sumy/divby;
-        out[(y*imagesizex+x)*3+2] = sumz/divby;
+        //out[(yyy*imagesizex+xxx)*3+0] = sumx/divby;
+        //out[(yyy*imagesizex+xxx)*3+1] = sumy/divby;
+        //out[(yyy*imagesizex+xxx)*3+2] = sumz/divby;
     }
 }
 
@@ -78,8 +98,7 @@ unsigned int imagesizey, imagesizex; // Image size
 ////////////////////////////////////////////////////////////////////////////////
 void computeImages(int kernelsizex, int kernelsizey)
 {
-    if (kernelsizex > maxKernelSizeX || kernelsizey > maxKernelSizeY) {
-        printf("Kernel size out of bounds!\n");
+    if (kernelsizex > MAX_KERNEL_SIZE_X || kernelsizey > MAX_KERNEL_SIZE_Y) { printf("Kernel size out of bounds!\n");
         return;
     }
 
@@ -87,8 +106,8 @@ void computeImages(int kernelsizex, int kernelsizey)
     cudaMalloc( (void**)&dev_input, imagesizex*imagesizey*3);
     cudaMemcpy( dev_input, image, imagesizey*imagesizex*3, cudaMemcpyHostToDevice );
     cudaMalloc( (void**)&dev_bitmap, imagesizex*imagesizey*3);
-    dim3 grid(imagesizex,imagesizey);
-    filter<<<grid,1>>>(dev_input, dev_bitmap, imagesizex, imagesizey, kernelsizex, kernelsizey); // Awful load balance
+    dim3 grid(imagesizex/BLOCK_SIZE,imagesizey/BLOCK_SIZE);
+    filter<<<grid,dim3(BLOCK_SIZE, BLOCK_SIZE)>>>(dev_input, dev_bitmap, imagesizex, imagesizey, kernelsizex, kernelsizey); // Awful load balance
     cudaThreadSynchronize();
     // Check for errors!
     cudaError_t err = cudaGetLastError();

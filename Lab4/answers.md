@@ -1,5 +1,6 @@
 # 1
-16 cores, ? SMs
+16 cores, 1 SMs
+
 # 2
 It's identical here, but may not always be due to different implementations on CPU
 and GPU.
@@ -30,7 +31,7 @@ Hard to tell, the fastest usually runs in ~2 ms but what configuration achieves 
 
 # 8
 
-No discernable difference.
+Sometimes it executed just as fast, and sometimes it took up to twice as long.
 
 # 9
 

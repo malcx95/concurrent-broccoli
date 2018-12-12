@@ -43,7 +43,7 @@ void initBitmap(int width, int height)
 #define DIM 1024
 
 // Select precision here! float or double!
-#define MYFLOAT float
+#define MYFLOAT double 
 
 // User controlled parameters
 int maxiter = 212;
@@ -133,8 +133,8 @@ void fractal_kernel(unsigned char* out, int maxiter, MYFLOAT offsetx,
 
 void computeFractal()
 {
-    dim3 grid(DIM/16, DIM/16);
-    dim3 block(16, 16);
+    dim3 grid(DIM/32, DIM/32);
+    dim3 block(32, 32);
     fractal_kernel<<<grid, block>>>(cuda_peter, maxiter, offsetx, offsety, zoom, scale);
     cudaMemcpy(pixels, cuda_peter, DIM*DIM*4, cudaMemcpyDeviceToHost);
 }

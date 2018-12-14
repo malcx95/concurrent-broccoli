@@ -33,9 +33,9 @@
 #define MAX_KERNEL_SIZE_X 10
 #define MAX_KERNEL_SIZE_Y 10
 #define BLOCK_SIZE 16
-#define SHARED_STUFF_SIZE_X BLOCK_SIZE+MAX_KERNEL_SIZE_X*2
-#define SHARED_STUFF_SIZE_Y BLOCK_SIZE+MAX_KERNEL_SIZE_Y*2
-#define SHARED_STUFF_SIZE SHARED_STUFF_SIZE_X*SHARED_STUFF_SIZE_Y*3
+#define SHARED_STUFF_SIZE_X (BLOCK_SIZE+MAX_KERNEL_SIZE_X * 2)
+#define SHARED_STUFF_SIZE_Y (BLOCK_SIZE+MAX_KERNEL_SIZE_Y * 2)
+#define SHARED_STUFF_SIZE (SHARED_STUFF_SIZE_X*SHARED_STUFF_SIZE_Y)
 
 __global__ void filter(unsigned char *image, unsigned char *out, const unsigned int imagesizex, const unsigned int imagesizey, const int kernelsizex, const int kernelsizey)
 { 
@@ -48,21 +48,20 @@ __global__ void filter(unsigned char *image, unsigned char *out, const unsigned 
     int yyy = patch_start_y + threadIdx.y;
     size_t offset = threadIdx.x + threadIdx.y*blockDim.x;
     for (size_t i = offset; i < SHARED_STUFF_SIZE; i+=blockDim.x*blockDim.y) {
-        size_t r_x_index = patch_start_x + i % SHARED_STUFF_SIZE_X;
-        size_t r_y_index = patch_start_y + i / SHARED_STUFF_SIZE_X;
+        size_t r_x_index = patch_start_x + (i % SHARED_STUFF_SIZE_X);
+        size_t r_y_index = patch_start_y + (i / SHARED_STUFF_SIZE_X);
         size_t r_index = (r_x_index + r_y_index * imagesizex) * 3;
-        out[r_index] = 128 + ((float)i/(float)SHARED_STUFF_SIZE)*127;
-        out[r_index+1] = 255;
+
         shared_stuff[i % SHARED_STUFF_SIZE_X][i / SHARED_STUFF_SIZE_X][0] = image[r_index];
         shared_stuff[i % SHARED_STUFF_SIZE_X][i / SHARED_STUFF_SIZE_X][1] = image[r_index+1];
         shared_stuff[i % SHARED_STUFF_SIZE_X][i / SHARED_STUFF_SIZE_X][2] = image[r_index+2];
     }
 
-    int x = threadIdx.x + kernelsizex/2;
-    int y = threadIdx.y*SHARED_STUFF_SIZE_X + kernelsizey/2;
+    int x = threadIdx.x + kernelsizex;
+    int y = threadIdx.y + kernelsizey;
 
 
-    int divby = (2*kernelsizex+1)*(2*kernelsizey+1); // Works for box filters only!
+    int divby = (2*kernelsizex+1)*(2*kernelsizey+1);
 
     // If inside image 
     if (xxx < imagesizex && yyy < imagesizey) {
@@ -70,6 +69,10 @@ __global__ void filter(unsigned char *image, unsigned char *out, const unsigned 
         unsigned int sumx = 0;
         unsigned int sumy = 0;
         unsigned int sumz = 0;
+
+        //sumx = shared_stuff[x][y][0];
+        //sumy = shared_stuff[x][y][1];
+        //sumz = shared_stuff[x][y][2];
 
         for(int dy=-kernelsizey;dy<=kernelsizey;dy++) {
             for(int dx=-kernelsizex;dx<=kernelsizex;dx++) {
@@ -82,9 +85,9 @@ __global__ void filter(unsigned char *image, unsigned char *out, const unsigned 
                 sumz += shared_stuff[xx][yy][2];
             }
         }
-        //out[(yyy*imagesizex+xxx)*3+0] = sumx/divby;
-        //out[(yyy*imagesizex+xxx)*3+1] = sumy/divby;
-        //out[(yyy*imagesizex+xxx)*3+2] = sumz/divby;
+        out[(yyy*imagesizex+xxx)*3+0] = sumx/divby;
+        out[(yyy*imagesizex+xxx)*3+1] = sumy/divby;
+        out[(yyy*imagesizex+xxx)*3+2] = sumz/divby;
     }
 }
 

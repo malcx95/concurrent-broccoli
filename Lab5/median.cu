@@ -37,7 +37,30 @@
 #define SHARED_STUFF_SIZE_Y (BLOCK_SIZE+MAX_KERNEL_SIZE_Y * 2)
 #define SHARED_STUFF_SIZE (SHARED_STUFF_SIZE_X*SHARED_STUFF_SIZE_Y)
 
-__global__ void filter(unsigned char *image, unsigned char *out, const unsigned int imagesizex, const unsigned int imagesizey, const int kernelsizex, const int kernelsizey)
+#define KERNEL_SIZE 2
+
+
+__device__
+void swap(unsigned char* x1, unsigned char* x2) {
+    unsigned char tmp = *x1;
+    *x1 = *x2;
+    *x2 = tmp;
+}
+
+
+__device__
+void insertion_sort(int length, unsigned char* array) {
+    for (unsigned i = 1; i < length; ++i) {
+        unsigned j = i;
+        while (j > 0 && array[j-1] > array[j]) {
+            swap(&array[j-1], &array[j]);
+            j--;
+        }
+    }
+}
+
+
+__global__ void filter(unsigned char *image, unsigned char *out, const unsigned int imagesizex, const unsigned int imagesizey)
 { 
     __shared__ unsigned char shared_stuff[SHARED_STUFF_SIZE_X][SHARED_STUFF_SIZE_Y][3];
 
@@ -57,37 +80,38 @@ __global__ void filter(unsigned char *image, unsigned char *out, const unsigned 
         shared_stuff[i % SHARED_STUFF_SIZE_X][i / SHARED_STUFF_SIZE_X][2] = image[r_index+2];
     }
 
-    int x = threadIdx.x + kernelsizex;
-    int y = threadIdx.y + kernelsizey;
+    int x = threadIdx.x + KERNEL_SIZE;
+    int y = threadIdx.y + KERNEL_SIZE;
 
 
-    int divby = (2*kernelsizex+1)*(2*kernelsizey+1);
-
-    // If inside image 
+    // If inside image
     if (xxx < imagesizex && yyy < imagesizey) {
         // Filter kernel (simple box filter)
-        unsigned int sumx = 0;
-        unsigned int sumy = 0;
-        unsigned int sumz = 0;
+        unsigned char sort_r[KERNEL_SIZE*KERNEL_SIZE*4];
+        unsigned char sort_g[KERNEL_SIZE*KERNEL_SIZE*4];
+        unsigned char sort_b[KERNEL_SIZE*KERNEL_SIZE*4];
 
-        //sumx = shared_stuff[x][y][0];
-        //sumy = shared_stuff[x][y][1];
-        //sumz = shared_stuff[x][y][2];
-
-        for(int dy=-kernelsizey;dy<=kernelsizey;dy++) {
-            for(int dx=-kernelsizex;dx<=kernelsizex;dx++) {
+        int it = 0;
+        for(int dy=-KERNEL_SIZE;dy<=KERNEL_SIZE;dy++) {
+            for(int dx=-KERNEL_SIZE;dx<=KERNEL_SIZE;dx++) {
                 // Use max and min to avoid branching!
                 int xx = min(max(x+dx, 0), SHARED_STUFF_SIZE_X-1);
                 int yy = min(max(y+dy, 0), SHARED_STUFF_SIZE_Y-1);
 
-                sumx += shared_stuff[xx][yy][0];
-                sumy += shared_stuff[xx][yy][1];
-                sumz += shared_stuff[xx][yy][2];
+                sort_r[it] = shared_stuff[xx][yy][0];
+                sort_g[it] = shared_stuff[xx][yy][1];
+                sort_b[it] = shared_stuff[xx][yy][2];
+                it++;
             }
         }
-        out[(yyy*imagesizex+xxx)*3+0] = sumx/divby;
-        out[(yyy*imagesizex+xxx)*3+1] = sumy/divby;
-        out[(yyy*imagesizex+xxx)*3+2] = sumz/divby;
+        
+        insertion_sort(KERNEL_SIZE*KERNEL_SIZE*4, sort_r);
+        insertion_sort(KERNEL_SIZE*KERNEL_SIZE*4, sort_g);
+        insertion_sort(KERNEL_SIZE*KERNEL_SIZE*4, sort_b);
+
+        out[(yyy*imagesizex+xxx)*3+0] = sort_r[KERNEL_SIZE*KERNEL_SIZE*2];
+        out[(yyy*imagesizex+xxx)*3+1] = sort_g[KERNEL_SIZE*KERNEL_SIZE*2];
+        out[(yyy*imagesizex+xxx)*3+2] = sort_b[KERNEL_SIZE*KERNEL_SIZE*2];
     }
 }
 
@@ -101,7 +125,7 @@ unsigned int imagesizey, imagesizex; // Image size
 ////////////////////////////////////////////////////////////////////////////////
 void computeImages(int kernelsizex, int kernelsizey)
 {
-    if (kernelsizex > MAX_KERNEL_SIZE_X || kernelsizey > MAX_KERNEL_SIZE_Y) { printf("Kernel size out of bounds!\n");
+    if (KERNEL_SIZE > MAX_KERNEL_SIZE_X || KERNEL_SIZE > MAX_KERNEL_SIZE_Y) { printf("Kernel size out of bounds!\n");
         return;
     }
 
@@ -112,7 +136,7 @@ void computeImages(int kernelsizex, int kernelsizey)
     dim3 grid(imagesizex/BLOCK_SIZE,imagesizey/BLOCK_SIZE);
 
     int start = GetMicroseconds();
-    filter<<<grid,dim3(BLOCK_SIZE, BLOCK_SIZE)>>>(dev_input, dev_bitmap, imagesizex, imagesizey, kernelsizex, kernelsizey); // Awful load balance
+    filter<<<grid,dim3(BLOCK_SIZE, BLOCK_SIZE)>>>(dev_input, dev_bitmap, imagesizex, imagesizey);
     cudaThreadSynchronize();
     int end = GetMicroseconds();
 
@@ -177,7 +201,7 @@ int main( int argc, char** argv) {
 
     ResetMilli();
 
-    computeImages(10, 10);
+    computeImages(5, 5);
 
     // You can save the result to a file like this:
     // writeppm("out.ppm", imagesizey, imagesizex, pixels);

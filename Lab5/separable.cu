@@ -112,7 +112,8 @@ void computeImages(int kernelsizex, int kernelsizey)
     dim3 grid(imagesizex/BLOCK_SIZE,imagesizey/BLOCK_SIZE);
 
     int start = GetMicroseconds();
-    filter<<<grid,dim3(BLOCK_SIZE, BLOCK_SIZE)>>>(dev_input, dev_bitmap, imagesizex, imagesizey, kernelsizex, kernelsizey); // Awful load balance
+    filter<<<grid,dim3(BLOCK_SIZE, BLOCK_SIZE)>>>(dev_input, dev_bitmap, imagesizex, imagesizey, kernelsizex, 1); // Awful load balance
+    filter<<<grid,dim3(BLOCK_SIZE, BLOCK_SIZE)>>>(dev_bitmap, dev_input, imagesizex, imagesizey, 1, kernelsizey); // Awful load balance
     cudaThreadSynchronize();
     int end = GetMicroseconds();
 
@@ -123,7 +124,7 @@ void computeImages(int kernelsizex, int kernelsizey)
     if (err != cudaSuccess) {
         printf("Error: %s\n", cudaGetErrorString(err));
     }
-    cudaMemcpy( pixels, dev_bitmap, imagesizey*imagesizex*3, cudaMemcpyDeviceToHost );
+    cudaMemcpy( pixels, dev_input, imagesizey*imagesizex*3, cudaMemcpyDeviceToHost );
     cudaFree( dev_bitmap );
     cudaFree( dev_input );
 }

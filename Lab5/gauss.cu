@@ -37,6 +37,9 @@
 #define SHARED_STUFF_SIZE_Y (BLOCK_SIZE+MAX_KERNEL_SIZE_Y * 2)
 #define SHARED_STUFF_SIZE (SHARED_STUFF_SIZE_X*SHARED_STUFF_SIZE_Y)
 
+__device__
+const unsigned int GAUSS[5] = {1, 4, 6, 4, 1};
+
 __global__ void filter(unsigned char *image, unsigned char *out, const unsigned int imagesizex, const unsigned int imagesizey, const int kernelsizex, const int kernelsizey)
 { 
     __shared__ unsigned char shared_stuff[SHARED_STUFF_SIZE_X][SHARED_STUFF_SIZE_Y][3];
@@ -61,7 +64,7 @@ __global__ void filter(unsigned char *image, unsigned char *out, const unsigned 
     int y = threadIdx.y + kernelsizey;
 
 
-    int divby = (2*kernelsizex+1)*(2*kernelsizey+1);
+    int divby = 16;
 
     // If inside image 
     if (xxx < imagesizex && yyy < imagesizey) {
@@ -80,9 +83,11 @@ __global__ void filter(unsigned char *image, unsigned char *out, const unsigned 
                 int xx = min(max(x+dx, 0), SHARED_STUFF_SIZE_X-1);
                 int yy = min(max(y+dy, 0), SHARED_STUFF_SIZE_Y-1);
 
-                sumx += shared_stuff[xx][yy][0];
-                sumy += shared_stuff[xx][yy][1];
-                sumz += shared_stuff[xx][yy][2];
+                int gauss_index = max(abs(dx), abs(dy));
+
+                sumx += shared_stuff[xx][yy][0]*GAUSS[2 + gauss_index];
+                sumy += shared_stuff[xx][yy][1]*GAUSS[2 + gauss_index];
+                sumz += shared_stuff[xx][yy][2]*GAUSS[2 + gauss_index];
             }
         }
         out[(yyy*imagesizex+xxx)*3+0] = sumx/divby;
@@ -112,7 +117,8 @@ void computeImages(int kernelsizex, int kernelsizey)
     dim3 grid(imagesizex/BLOCK_SIZE,imagesizey/BLOCK_SIZE);
 
     int start = GetMicroseconds();
-    filter<<<grid,dim3(BLOCK_SIZE, BLOCK_SIZE)>>>(dev_input, dev_bitmap, imagesizex, imagesizey, kernelsizex, kernelsizey); // Awful load balance
+    filter<<<grid,dim3(BLOCK_SIZE, BLOCK_SIZE)>>>(dev_input, dev_bitmap, imagesizex, imagesizey, 2, 0); // Awful load balance
+    filter<<<grid,dim3(BLOCK_SIZE, BLOCK_SIZE)>>>(dev_bitmap, dev_input, imagesizex, imagesizey, 0, 2); // Awful load balance
     cudaThreadSynchronize();
     int end = GetMicroseconds();
 
@@ -123,7 +129,7 @@ void computeImages(int kernelsizex, int kernelsizey)
     if (err != cudaSuccess) {
         printf("Error: %s\n", cudaGetErrorString(err));
     }
-    cudaMemcpy( pixels, dev_bitmap, imagesizey*imagesizex*3, cudaMemcpyDeviceToHost );
+    cudaMemcpy( pixels, dev_input, imagesizey*imagesizex*3, cudaMemcpyDeviceToHost );
     cudaFree( dev_bitmap );
     cudaFree( dev_input );
 }
@@ -177,7 +183,7 @@ int main( int argc, char** argv) {
 
     ResetMilli();
 
-    computeImages(10, 10);
+    computeImages(5, 5);
 
     // You can save the result to a file like this:
     // writeppm("out.ppm", imagesizey, imagesizex, pixels);

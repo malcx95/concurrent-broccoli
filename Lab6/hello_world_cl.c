@@ -31,13 +31,13 @@ const char *KernelSource =    "\n" \
 int main(int argc, char** argv)
 {
     int err;                            // error code returned from api calls
-    cl_device_id device_id;          // compute device id 
-    cl_context context;              // compute context
-    cl_command_queue commands;        // compute command queue
+    cl_device_id device_id;             // compute device id 
+    cl_context context;                 // compute context
+    cl_command_queue commands;          // compute command queue
     cl_program program;                 // compute program
     cl_kernel kernel;                   // compute kernel
     cl_mem input;                       // device memory used for the input array
-    cl_mem input2;                       // device memory used for the input array
+    cl_mem input2;                      // device memory used for the input array
     cl_mem output;                      // device memory used for the output array
     size_t global;                      // global domain size for our calculation
     size_t local;                       // local domain size for our calculation
